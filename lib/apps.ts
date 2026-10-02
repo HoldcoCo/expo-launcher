@@ -1,4 +1,5 @@
-import { decryptPassword, encryptPassword } from '@/lib/crypto';
+import { decryptPassword, encryptPassword } from "@/lib/crypto";
+import { isIconKey } from "@/lib/icons";
 
 export type AppRow = {
   id: string;
@@ -6,6 +7,7 @@ export type AppRow = {
   group_name: string;
   description: string | null;
   url: string;
+  icon: string | null;
   requires_login: boolean;
   username: string | null;
   password_encrypted: string | null;
@@ -58,15 +60,27 @@ export function validateAppInput(input: unknown, existing: AppRow | null): Resul
   }
 
   // Optional text fields
-  for (const key of ['description', 'username'] as const) {
+  for (const key of ["description", "username"] as const) {
     if (!has(key)) continue;
     const v = input[key];
     if (v === null) { patch[key] = null; continue; }
-    if (typeof v !== 'string') { errors[key] = 'Must be text'; continue; }
-    patch[key] = v.trim() === '' ? null : v.trim();
+    if (typeof v !== "string") { errors[key] = "Must be text"; continue; }
+    patch[key] = v.trim() === "" ? null : v.trim();
   }
 
-  for (const key of ['requires_login', 'is_active'] as const) {
+  // Optional icon: null, empty string → null, or one of the registry keys
+  if (has("icon")) {
+    const v = input.icon;
+    if (v === null || v === "") {
+      patch.icon = null;
+    } else if (typeof v === "string" && isIconKey(v)) {
+      patch.icon = v;
+    } else {
+      errors.icon = "Pick an icon from the list";
+    }
+  }
+
+  for (const key of ["requires_login", "is_active"] as const) {
     if (!has(key)) continue;
     if (typeof input[key] !== 'boolean') errors[key] = 'Must be true or false';
     else patch[key] = input[key] as boolean;

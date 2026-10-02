@@ -66,4 +66,24 @@ test('text fields are trimmed and a blank description becomes null', () => {
   expect(r.patch.name).toBe('Axiom ARC');
   expect(r.patch.description).toBeNull();
 });
+test('valid icon key is accepted', () => {
+  const r = validateAppInput({ ...base, icon: 'building-2' }, null);
+  if (!r.ok) throw new Error('expected ok');
+  expect(r.patch.icon).toBe('building-2');
+});
+test('unknown icon key is rejected', () => {
+  const r = validateAppInput({ ...base, icon: 'not-a-real-icon' }, null);
+  expect(r.ok).toBe(false);
+  if (!r.ok) expect(r.errors.icon).toBe('Pick an icon from the list');
+});
+test('empty icon string becomes null', () => {
+  const r = validateAppInput({ ...base, icon: '' }, null);
+  if (!r.ok) throw new Error('expected ok');
+  expect(r.patch.icon).toBeNull();
+});
+test('omitting icon on update leaves the stored icon untouched', () => {
+  const r = validateAppInput({ name: 'Renamed' }, stored({ icon: 'store' }));
+  if (!r.ok) throw new Error('expected ok');
+  expect(r.patch).not.toHaveProperty('icon');
+});
 void encryptPassword;

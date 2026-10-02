@@ -1,37 +1,68 @@
 @import "tailwindcss";
 
-/* Axiom brand tokens */
+/* Axiom brand tokens — light theme only */
 @theme {
-  --color-ink: #0c4881;        /* Axiom primary blue */
+  --color-canvas: #f8f8f8;
+  --color-surface: #ffffff;
+  --color-ink: #0c4881;
+  --color-ink-deep: #0e2440;
+  --color-text: #2b3647;
+  --color-muted: #5e6b7d;
+  --color-line: #e2e6ec;
+  --color-line-strong: #cdd3dc;
   --color-violet: #6348b3;
-  --color-magenta: #b311c9;    /* one accent: focus + the tile being opened */
-  --color-teal: #2b7a78;
-  --color-amber: #a8650a;
-  --color-paper: #f8f8f8;
-  --color-text: #17212e;
-  --color-muted: #5a6575;
-  --color-line: #d8dde5;
-  --color-ok: #1f7a4a;
+  --color-magenta: #b311c9;
+  --color-ok: #1e7a4c;
+  --color-ok-bg: #e8f4ee;
   --color-bad: #b42318;
-  --font-sans: "Darker Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-bad-bg: #fdecea;
+  --font-display: "Darker Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow-tile: 0 1px 2px rgba(14, 36, 64, 0.06);
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+}
 
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-text);
   font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 19px;           /* Darker Grotesque sets small; 19px reads like 16px elsewhere */
-  line-height: 1.35;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-magenta);
+  outline: 2px solid var(--color-magenta);
   outline-offset: 2px;
 }
 
+@keyframes open-bar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Tile hover lift — pointer devices only; no transforms when reduced motion */
+@media (hover: hover) and (pointer: fine) {
+  .app-tile:not(:disabled):hover {
+    border-color: var(--color-line-strong);
+    box-shadow: var(--shadow-tile);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .app-tile:not(:disabled):hover {
+      transform: translateY(-1px);
+    }
+    .app-tile:not(:disabled):active {
+      transform: scale(0.985);
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

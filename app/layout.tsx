@@ -1,16 +1,18 @@
-import type { Metadata, Viewport } from 'next';
-import '@fontsource/darker-grotesque/500.css';
-import '@fontsource/darker-grotesque/600.css';
-import '@fontsource/darker-grotesque/800.css';
-import './globals.css';
+import type { Metadata, Viewport } from "next";
+import "@fontsource/darker-grotesque/700.css";
+import "@fontsource/darker-grotesque/800.css";
+import "@fontsource/figtree/400.css";
+import "@fontsource/figtree/500.css";
+import "@fontsource/figtree/600.css";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Expo launcher',
-  description: 'Open Axiom and Tecleef demos, already logged in.',
+  title: "Expo launcher",
+  description: "Open Axiom and Tecleef demos, already logged in.",
   robots: { index: false, follow: false },
 };
 
-export const viewport: Viewport = { themeColor: '#0c4881' };
+export const viewport: Viewport = { themeColor: "#0c4881" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
