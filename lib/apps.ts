@@ -100,3 +100,30 @@ export function validateAppInput(input: unknown, existing: AppRow | null): Resul
 
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, patch };
 }
+
+export type LaunchPayload = {
+  targetUrl: string;
+  loginUrl?: string;
+  username?: string;
+  password?: string;
+  delayMs?: number;
+};
+
+/**
+ * The one place that turns a stored app into a usable login.
+ * Shared by the launch and check routes so their 404/409/422 rules cannot drift.
+ */
+export function resolveLogin(
+  row: AppRow | null,
+  opts: { allowInactive?: boolean } = {},
+): { status: 404 | 409 | 422 } | { status: 200; payload: LaunchPayload } {
+  if (!row || (!row.is_active && !opts.allowInactive)) return { status: 404 };
+  if (!row.requires_login) return { status: 200, payload: { targetUrl: row.url } };
+  if (!row.username || !row.password_encrypted) return { status: 409 };
+  let password: string;
+  try { password = decryptPassword(row.password_encrypted); } catch { return { status: 422 }; }
+  return {
+    status: 200,
+    payload: { targetUrl: row.url, loginUrl: loginUrlFor(row.url), username: row.username, password, delayMs: row.redirect_delay_ms },
+  };
+}
