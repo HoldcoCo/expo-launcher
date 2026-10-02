@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, test, expect, vi, type Mock } from 'vitest';
-import { launchApp } from '@/lib/launch-client';
+import { launchApp, LOGOUT_SETTLE_MS } from '@/lib/launch-client';
 
 let order: string[]; let tab: { close: Mock; location: { href: string } }; let win: Window;
 const reply = (status: number, body: object) => vi.fn(async () => { order.push('fetch'); return new Response(JSON.stringify(body), { status }); });
@@ -32,11 +32,21 @@ test('blocked pop-up stops before fetching', async () => {
 });
 test('login app posts exact credentials into the tab, then redirects after the delay', async () => {
   expect(await launchApp('a1', { win, fetchImpl: reply(200, login) })).toEqual({ ok: true });
+  vi.advanceTimersByTime(LOGOUT_SETTLE_MS);
   expect(submitted).toEqual({ action: login.loginUrl, method: 'post', target: 'axiom-launch-a1', usr: login.username, pwd: login.password });
   expect(document.querySelector('form')).toBeNull();
-  expect(tab.location.href).toBe('');
+  expect(tab.location.href).toBe('https://demo.axiomerp.co/api/method/logout');
   vi.advanceTimersByTime(1500);
   expect(tab.location.href).toBe(login.targetUrl);
+});
+test('the site is logged out in the tab before the new login is posted', async () => {
+  await launchApp('a1', { win, fetchImpl: reply(200, login) });
+  expect(tab.location.href).toBe('https://demo.axiomerp.co/api/method/logout');
+  expect(submitted).toBeNull();
+  vi.advanceTimersByTime(LOGOUT_SETTLE_MS - 1);
+  expect(submitted).toBeNull();
+  vi.advanceTimersByTime(1);
+  expect(submitted).not.toBeNull();
 });
 test('no-login app goes straight to the target', async () => {
   await launchApp('t1', { win, fetchImpl: reply(200, { targetUrl: 'https://dev.tecleef.com/' }) });

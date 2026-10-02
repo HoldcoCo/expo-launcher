@@ -4,6 +4,9 @@ export type LaunchOutcome =
   | { ok: true }
   | { ok: false; reason: 'popup-blocked' | 'unauthorized' | 'needs-password' | 'unreadable' | 'failed' };
 
+/** Time for the logout navigation to land before the login form replaces it. */
+export const LOGOUT_SETTLE_MS = 700;
+
 const REASON_BY_STATUS: Record<number, 'unauthorized' | 'needs-password' | 'unreadable'> = {
   401: 'unauthorized',
   409: 'needs-password',
@@ -47,24 +50,31 @@ export function launchApp(
       return { ok: true };
     }
 
-    // 3. Post the login into that tab with a hidden form (never a URL with the password in it).
-    const form = doc.createElement('form');
-    form.method = 'POST';
-    form.action = payload.loginUrl;
-    form.target = tabName;
-    form.style.display = 'none';
-    for (const [name, value] of [['usr', payload.username], ['pwd', payload.password]] as const) {
-      const input = doc.createElement('input');
-      input.type = 'hidden';
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
-    }
-    doc.body.appendChild(form);
-    try { form.submit(); } finally { form.remove(); }
+    // 3. Log the site out first. Apps on one site share a session, so if the new login
+    //    failed, the tab would otherwise open as whoever used that site last.
+    const { loginUrl, username, password, targetUrl } = payload;
+    tab.location.href = `${new URL(loginUrl).origin}/api/method/logout`;
 
-    // 4 + 5. Once the session cookie is set, send the tab to the app.
-    setTimeout(() => { tab.location.href = payload.targetUrl; }, payload.delayMs ?? 1500);
+    setTimeout(() => {
+      // 4. Post the login into that tab with a hidden form (never a URL with the password in it).
+      const form = doc.createElement('form');
+      form.method = 'POST';
+      form.action = loginUrl;
+      form.target = tabName;
+      form.style.display = 'none';
+      for (const [name, value] of [['usr', username], ['pwd', password]] as const) {
+        const input = doc.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+      }
+      doc.body.appendChild(form);
+      try { form.submit(); } finally { form.remove(); }
+
+      // 5. Once the session cookie is set, send the tab to the app.
+      setTimeout(() => { tab.location.href = targetUrl; }, payload.delayMs ?? 1500);
+    }, LOGOUT_SETTLE_MS);
     return { ok: true };
   })();
 }
