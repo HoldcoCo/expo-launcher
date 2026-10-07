@@ -56,8 +56,9 @@ function measureCodeWidth(code: string, sizePx: number): number {
   span.style.top = "0";
   span.style.visibility = "hidden";
   span.style.whiteSpace = "nowrap";
-  span.style.fontFamily = "Figtree, ui-sans-serif, system-ui, sans-serif";
+  span.style.fontFamily = "Lexend, ui-sans-serif, system-ui, sans-serif";
   span.style.fontWeight = "600";
+  span.style.letterSpacing = "0.04em";
   span.style.fontVariantNumeric = "tabular-nums";
   span.style.fontSize = `${sizePx}px`;
   span.textContent = code;
@@ -131,13 +132,14 @@ beforeEach(() => {
   });
   stubReducedMotion(false);
   stubCryptoZero();
-  let rafTime = 0;
+  // Stay ahead of performance.now() so reduced-motion fades (which use t0 = performance.now()) complete.
+  let rafTime = performance.now();
   const rafTimers = new Map<number, ReturnType<typeof setTimeout>>();
   let rafId = 0;
   vi.stubGlobal(
     "requestAnimationFrame",
     (cb: FrameRequestCallback): number => {
-      rafTime += 500;
+      rafTime = Math.max(rafTime, performance.now()) + 500;
       rafId += 1;
       const id = rafId;
       rafTimers.set(
@@ -183,6 +185,12 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   localStorage.clear();
+  // Drop any fullscreenElement stub left by the full-screen test.
+  try {
+    Reflect.deleteProperty(document, "fullscreenElement");
+  } catch {
+    /* ignore */
+  }
 });
 
 describe("GiveawayPage", () => {
@@ -324,7 +332,7 @@ describe("GiveawayPage", () => {
     ).toBeVisible();
   });
 
-  test("with 3 winners in localStorage, shows filled slots and Draw complete", async () => {
+  test("with 3 winners in localStorage, shows filled slots and All winners drawn", async () => {
     const entries: Entry[] = [
       { name: "A", code: "A1" },
       { name: "B", code: "B1" },
@@ -340,7 +348,7 @@ describe("GiveawayPage", () => {
 
     render(<GiveawayPage />);
 
-    expect(await screen.findByText("Draw complete")).toBeVisible();
+    expect(await screen.findByRole("button", { name: "All winners drawn" })).toBeDisabled();
     expect(screen.getByText("3 of 3")).toBeVisible();
     expect(screen.getByText("A")).toBeVisible();
     expect(screen.getByText("B")).toBeVisible();
@@ -420,5 +428,175 @@ describe("GiveawayPage", () => {
     if (!card) throw new Error("missing winner card");
     expect(within(card).getByText("Grace")).toBeVisible();
     expect(within(card).queryByText("Ada")).toBeNull();
+  });
+
+  test("after a spin lands, Winner N label is absolute and frame height is unchanged", async () => {
+    stubReducedMotion(true);
+    seedStorage({
+      entries: [
+        { name: "Ada", code: "A1" },
+        { name: "Grace", code: "G1" },
+        { name: "Alan", code: "T1" },
+      ],
+      draws: [],
+    });
+
+    render(<GiveawayPage />);
+    const frame = await waitFor(() => {
+      const el = document.querySelector('[data-testid="giveaway-highlight"]');
+      if (!(el instanceof HTMLElement)) throw new Error("missing highlight");
+      return el;
+    });
+    const heightBefore = frame.getBoundingClientRect().height || frame.clientHeight || Number.parseFloat(frame.style.height);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Spin for winner 1" }));
+
+    const label = await screen.findByTestId("giveaway-winner-label");
+    expect(label).toBeVisible();
+    expect(label.textContent).toMatch(/Winner 1/i);
+    expect(getComputedStyle(label).position).toBe("absolute");
+
+    const heightAfter = frame.getBoundingClientRect().height || frame.clientHeight || Number.parseFloat(frame.style.height);
+    expect(heightAfter).toBe(heightBefore);
+  });
+
+  test("a drawn slot renders the name and the code", async () => {
+    seedStorage({
+      entries: [
+        { name: "Ada Lovelace", code: "AX-001" },
+        { name: "Grace", code: "G1" },
+      ],
+      draws: [
+        {
+          round: 1,
+          name: "Ada Lovelace",
+          code: "AX-001",
+          status: "winner",
+          at: "2026-10-07T10:01:00.000Z",
+        },
+      ],
+    });
+
+    render(<GiveawayPage />);
+    const slot = await screen.findByTestId("giveaway-slot-1");
+    expect(within(slot).getByText("Ada Lovelace")).toBeVisible();
+    expect(within(slot).getByText("AX-001")).toBeVisible();
+  });
+
+  test("after a spin lands, the centre row keeps the winner code and Ready is gone", async () => {
+    stubReducedMotion(true);
+    seedStorage({
+      entries: [
+        { name: "Ada", code: "A1" },
+        { name: "Grace", code: "G1" },
+        { name: "Alan", code: "T1" },
+      ],
+      draws: [],
+    });
+
+    render(<GiveawayPage />);
+    await screen.findByRole("button", { name: "Spin for winner 1" });
+    // Idle Ready is visible before the spin.
+    await waitFor(() => {
+      expect(screen.getByText("Ready")).toBeVisible();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Spin for winner 1" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("giveaway-winner-label")).toBeVisible();
+    });
+
+    expect(screen.queryByText("Ready")).toBeNull();
+    // crypto stub → first eligible entry Ada / A1.
+    const rows = screen.getAllByTestId("giveaway-reel-row");
+    const centre = rows[2];
+    expect(centre?.textContent).toBe("A1");
+  });
+
+  test("after Not here? Redraw, Ready shows again", async () => {
+    stubReducedMotion(true);
+    seedStorage({
+      entries: [
+        { name: "Ada", code: "A1" },
+        { name: "Grace", code: "G1" },
+        { name: "Alan", code: "T1" },
+      ],
+      draws: [],
+    });
+
+    render(<GiveawayPage />);
+    await userEvent.click(await screen.findByRole("button", { name: "Spin for winner 1" }));
+    await screen.findByRole("button", { name: "Not here? Redraw" });
+
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+    await userEvent.click(screen.getByRole("button", { name: "Not here? Redraw" }));
+
+    expect(await screen.findByText("Ready")).toBeVisible();
+  });
+
+  test("frame background is below rows and border is above with transparent fill", async () => {
+    seedStorage({
+      entries: [
+        { name: "Ada", code: "A1" },
+        { name: "Grace", code: "G1" },
+      ],
+      draws: [],
+    });
+
+    render(<GiveawayPage />);
+    await screen.findByText("2 entries in the draw");
+
+    const bg = document.querySelector('[data-layer="frame-bg"]');
+    const rows = document.querySelector('[data-layer="reel-rows"]');
+    const border = document.querySelector('[data-layer="frame-border"]');
+    expect(bg).toBeTruthy();
+    expect(rows).toBeTruthy();
+    expect(border).toBeTruthy();
+    if (!(bg instanceof HTMLElement) || !(rows instanceof HTMLElement) || !(border instanceof HTMLElement)) {
+      throw new Error("missing frame layers");
+    }
+
+    const parent = bg.parentElement;
+    expect(parent).toBe(rows.parentElement);
+    expect(parent).toBe(border.parentElement);
+    const children = [...(parent?.children ?? [])];
+    expect(children.indexOf(bg)).toBeLessThan(children.indexOf(rows));
+    expect(children.indexOf(rows)).toBeLessThan(children.indexOf(border));
+    expect(border.style.background).toBe("transparent");
+  });
+
+  test("fit-to-frame measuring span uses Lexend with letter-spacing 0.04em", async () => {
+    const seen: Array<{ fontFamily: string; letterSpacing: string }> = [];
+    const origAppend = document.body.appendChild.bind(document.body);
+    vi.spyOn(document.body, "appendChild").mockImplementation((node: Node) => {
+      if (node instanceof HTMLElement && node.getAttribute("data-testid") === "giveaway-measure-span") {
+        seen.push({
+          fontFamily: node.style.fontFamily,
+          letterSpacing: node.style.letterSpacing,
+        });
+      }
+      return origAppend(node);
+    });
+
+    seedStorage({
+      entries: [
+        { name: "Long", code: "1234567890123456" },
+        { name: "Short", code: "AB" },
+      ],
+      draws: [],
+    });
+
+    render(<GiveawayPage />);
+    await screen.findByText("2 entries in the draw");
+
+    await waitFor(() => {
+      expect(seen.length).toBeGreaterThan(0);
+    });
+
+    const last = seen[seen.length - 1];
+    if (!last) throw new Error("no measure span captured");
+    expect(last.fontFamily.toLowerCase()).toContain("lexend");
+    expect(last.letterSpacing).toBe("0.04em");
   });
 });

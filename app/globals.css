@@ -16,8 +16,12 @@
   --color-ok-bg: #e8f4ee;
   --color-bad: #b42318;
   --color-bad-bg: #fdecea;
+  /* Giveaway page only — not used on launcher/login */
+  --color-brand-red: #cc2229;
+  --color-ink-hover: #093d6e;
   --font-display: "Darker Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-lexend: "Lexend", ui-sans-serif, system-ui, sans-serif;
   --shadow-tile: 0 1px 2px rgba(14, 36, 64, 0.06);
 }
 
