@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { AppForm } from "@/components/AppForm";
+import { AppTile } from "@/components/AppTile";
+import { Toast, type ToastMessage } from "@/components/Toast";
 import type { PublicApp } from "@/lib/apps";
 import type { CheckResult } from "@/lib/frappe-check";
 import { launchApp, type LaunchOutcome } from "@/lib/launch-client";
 import { siteColours, siteOf } from "@/lib/sites";
-import { AppTile } from "@/components/AppTile";
-import { AppForm } from "@/components/AppForm";
-import { Toast, type ToastMessage } from "@/components/Toast";
+import { Gift } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Check = CheckResult | { skipped: true };
 
-const LAUNCH_MESSAGES: Record<Exclude<LaunchOutcome, { ok: true }>["reason"], string> = {
+const LAUNCH_MESSAGES: Record<
+  Exclude<LaunchOutcome, { ok: true }>["reason"],
+  string
+> = {
   "popup-blocked":
     "Pop-ups are blocked for this site. Safari: Settings › Safari › Block Pop-ups off. Chrome: pop-up icon in the address bar › Always allow.",
   unauthorized: "",
@@ -22,12 +27,15 @@ const LAUNCH_MESSAGES: Record<Exclude<LaunchOutcome, { ok: true }>["reason"], st
 };
 
 const GROUP_ORDER = ["Axiom", "Tecleef"];
-const groupRank = (g: string) => (GROUP_ORDER.includes(g) ? GROUP_ORDER.indexOf(g) : GROUP_ORDER.length);
+const groupRank = (g: string) =>
+  GROUP_ORDER.includes(g) ? GROUP_ORDER.indexOf(g) : GROUP_ORDER.length;
 
 /**
  * Readiness summary from last check results for active login apps.
  */
-function readinessLine(apps: PublicApp[]): { text: string; tone: "ok" | "bad" } | null {
+function readinessLine(
+  apps: PublicApp[],
+): { text: string; tone: "ok" | "bad" } | null {
   const loginApps = apps.filter((a) => a.is_active && a.requires_login);
   if (loginApps.length === 0) return null;
 
@@ -41,7 +49,10 @@ function readinessLine(apps: PublicApp[]): { text: string; tone: "ok" | "bad" } 
   });
 
   const allPassedToday = loginApps.every(
-    (a) => a.last_check_ok === true && a.last_check_at !== null && new Date(a.last_check_at) >= startOfToday,
+    (a) =>
+      a.last_check_ok === true &&
+      a.last_check_at !== null &&
+      new Date(a.last_check_at) >= startOfToday,
   );
 
   if (allPassedToday) return { text: "All logins checked today", tone: "ok" };
@@ -60,9 +71,15 @@ function readinessLine(apps: PublicApp[]): { text: string; tone: "ok" | "bad" } 
 /** Six static skeleton tiles while the app list loads. */
 function SkeletonGrid() {
   return (
-    <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+    <ul
+      className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3"
+      aria-hidden="true"
+    >
       {Array.from({ length: 6 }, (_, i) => (
-        <li key={i} className="rounded-[14px] border border-line bg-surface p-5 sm:min-h-44">
+        <li
+          key={i}
+          className="rounded-[14px] border border-line bg-surface p-5 sm:min-h-44"
+        >
           <div className="size-11 rounded-[10px] bg-line" />
           <div className="mt-3 h-7 w-3/4 rounded bg-line" />
           <div className="mt-2 h-4 w-full rounded bg-line" />
@@ -87,7 +104,10 @@ export default function LauncherPage() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const dismissToast = useCallback(() => setToast(null), []);
 
-  const toLogin = useCallback(() => router.replace("/login?next=%2F"), [router]);
+  const toLogin = useCallback(
+    () => router.replace("/login?next=%2F"),
+    [router],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -108,11 +128,17 @@ export default function LauncherPage() {
   const groups = useMemo(() => {
     const shown = (apps ?? []).filter((a) => editMode || a.is_active);
     const byGroup = new Map<string, PublicApp[]>();
-    for (const a of shown) byGroup.set(a.group_name, [...(byGroup.get(a.group_name) ?? []), a]);
-    return [...byGroup.entries()].sort(([a], [b]) => groupRank(a) - groupRank(b) || a.localeCompare(b));
+    for (const a of shown)
+      byGroup.set(a.group_name, [...(byGroup.get(a.group_name) ?? []), a]);
+    return [...byGroup.entries()].sort(
+      ([a], [b]) => groupRank(a) - groupRank(b) || a.localeCompare(b),
+    );
   }, [apps, editMode]);
 
-  const colours = useMemo(() => siteColours((apps ?? []).map((a) => a.url)), [apps]);
+  const colours = useMemo(
+    () => siteColours((apps ?? []).map((a) => a.url)),
+    [apps],
+  );
   const readiness = useMemo(() => (apps ? readinessLine(apps) : null), [apps]);
 
   function present(app: PublicApp) {
@@ -137,9 +163,12 @@ export default function LauncherPage() {
     const body = await res.json().catch(() => ({}));
     let result: Check;
     if (res.ok) result = body as Check;
-    else if (res.status === 409) result = { ok: false, status: null, message: "no password saved" };
-    else if (res.status === 422) result = { ok: false, status: null, message: "re-enter the password" };
-    else result = { ok: false, status: res.status, message: `HTTP ${res.status}` };
+    else if (res.status === 409)
+      result = { ok: false, status: null, message: "no password saved" };
+    else if (res.status === 422)
+      result = { ok: false, status: null, message: "re-enter the password" };
+    else
+      result = { ok: false, status: res.status, message: `HTTP ${res.status}` };
     setChecks((c) => ({ ...c, [id]: result }));
     return result;
   }
@@ -155,7 +184,10 @@ export default function LauncherPage() {
       }
       setToast(
         failed
-          ? { text: `${failed} ${failed === 1 ? "app" : "apps"} failed the login check. See the red lines.`, tone: "error" }
+          ? {
+              text: `${failed} ${failed === 1 ? "app" : "apps"} failed the login check. See the red lines.`,
+              tone: "error",
+            }
           : { text: "Every login works.", tone: "info" },
       );
     } catch {
@@ -177,7 +209,8 @@ export default function LauncherPage() {
       return {};
     }
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) return { errors: body.errors ?? { body: "Couldn't save. Try again." } };
+    if (!res.ok)
+      return { errors: body.errors ?? { body: "Couldn't save. Try again." } };
     setToast({ text: `Saved ${body.app.name}.`, tone: "info" });
     if (editing) {
       setChecks((c) => {
@@ -212,7 +245,7 @@ export default function LauncherPage() {
       ? "#0C4881"
       : form === "new"
         ? "#0C4881"
-        : colours.get(siteOf(form.url)) ?? "#0C4881";
+        : (colours.get(siteOf(form.url)) ?? "#0C4881");
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -220,7 +253,7 @@ export default function LauncherPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
           <div className="mr-auto min-w-0">
             <h1 className="font-display text-[2.25rem] font-extrabold leading-none tracking-[-0.01em] text-ink">
-              Expo launcher
+              Holdco App launcher
             </h1>
             <p className="mt-1 text-[0.8125rem] font-medium text-muted">
               Axiom and Tecleef demos
@@ -236,6 +269,14 @@ export default function LauncherPage() {
             )}
           </div>
 
+          <Link
+            href="/giveaway"
+            className="inline-flex min-h-10 items-center gap-2 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted"
+          >
+            <Gift size={18} strokeWidth={1.75} aria-hidden="true" />
+            Giveaway
+          </Link>
+
           <div
             role="group"
             aria-label="Mode"
@@ -244,7 +285,9 @@ export default function LauncherPage() {
             <button
               type="button"
               aria-pressed={!editMode}
-              onClick={() => { if (editMode) setEditMode(false); }}
+              onClick={() => {
+                if (editMode) setEditMode(false);
+              }}
               className={`min-h-10 rounded-[8px] px-3 text-[0.9375rem] font-semibold ${
                 !editMode ? "bg-ink text-white" : "text-muted"
               }`}
@@ -254,7 +297,9 @@ export default function LauncherPage() {
             <button
               type="button"
               aria-pressed={editMode}
-              onClick={() => { if (!editMode) setEditMode(true); }}
+              onClick={() => {
+                if (!editMode) setEditMode(true);
+              }}
               className={`min-h-10 rounded-[8px] px-3 text-[0.9375rem] font-semibold ${
                 editMode ? "bg-ink text-white" : "text-muted"
               }`}
@@ -306,7 +351,11 @@ export default function LauncherPage() {
         {loadError && (
           <div role="alert" className="mb-6 text-base font-semibold text-bad">
             Couldn&apos;t load the app list.{" "}
-            <button type="button" onClick={load} className="underline underline-offset-4">
+            <button
+              type="button"
+              onClick={load}
+              className="underline underline-offset-4"
+            >
               Try again
             </button>
           </div>
@@ -315,7 +364,9 @@ export default function LauncherPage() {
         {apps === null && !loadError && <SkeletonGrid />}
 
         {apps !== null && groups.length === 0 && (
-          <p className="text-base text-muted">No apps yet. Switch to Edit and add one.</p>
+          <p className="text-base text-muted">
+            No apps yet. Switch to Edit and add one.
+          </p>
         )}
 
         {groups.map(([group, list]) => (
@@ -351,8 +402,8 @@ export default function LauncherPage() {
 
         {apps !== null && apps.length > 0 && (
           <p className="max-w-2xl text-[0.8125rem] font-medium text-muted">
-            Tiles with the same colour share one login session. Tapping a tile signs that site out,
-            then back in as the tile&apos;s user.
+            Tiles with the same colour share one login session. Tapping a tile
+            signs that site out, then back in as the tile&apos;s user.
           </p>
         )}
       </main>

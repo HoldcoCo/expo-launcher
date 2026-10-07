@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { safeNext } from "@/lib/safe-next";
 import {
   Building2,
   DoorOpen,
@@ -16,7 +15,8 @@ import {
   Users,
   Wrench,
 } from "lucide-react";
-import { safeNext } from "@/lib/safe-next";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 
 function lockMessage(seconds: number): string {
   const minutes = Math.max(1, Math.ceil(seconds / 60));
@@ -42,7 +42,10 @@ const PANEL_ICONS = [
 function InkPanel() {
   return (
     <div className="relative flex h-[200px] w-full shrink-0 flex-col justify-end overflow-hidden bg-ink px-8 py-8 lg:h-auto lg:w-[45%] lg:justify-center lg:px-12 lg:py-16">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-4 gap-6 p-6 opacity-[0.12] lg:grid-cols-3 lg:gap-8 lg:p-10">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 grid grid-cols-4 gap-6 p-6 opacity-[0.12] lg:grid-cols-3 lg:gap-8 lg:p-10"
+      >
         {PANEL_ICONS.map((Icon, i) => (
           <span key={i} className="flex items-center justify-center text-white">
             <Icon size={36} strokeWidth={1.25} />
@@ -53,7 +56,9 @@ function InkPanel() {
         <h1 className="font-display text-[2.25rem] font-extrabold leading-[1.05] tracking-[-0.01em] text-white lg:text-[2.75rem]">
           Present every demo in one tap.
         </h1>
-        <p className="mt-3 text-base text-white/75">For the Holdco booth team.</p>
+        <p className="mt-3 text-base text-white/75">
+          For the Holdco booth team.
+        </p>
       </div>
     </div>
   );
@@ -82,12 +87,15 @@ function LoginForm() {
         return;
       }
       const body = await res.json().catch(() => ({}));
-      if (res.status === 429) setError(lockMessage(body.retryAfterSeconds ?? 900));
+      if (res.status === 429)
+        setError(lockMessage(body.retryAfterSeconds ?? 900));
       else if (res.status === 401) setError("Incorrect password");
       else setError("Enter the team password.");
       setPassword("");
     } catch {
-      setError("Couldn't reach the launcher. Check the connection and try again.");
+      setError(
+        "Couldn't reach the launcher. Check the connection and try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -95,7 +103,10 @@ function LoginForm() {
 
   return (
     <form onSubmit={submit} className="w-full max-w-[360px]">
-      <label htmlFor="team-password" className="block text-[0.9375rem] font-semibold text-text">
+      <label
+        htmlFor="team-password"
+        className="block text-[0.9375rem] font-semibold text-text"
+      >
         Team password
       </label>
       <input
@@ -110,7 +121,11 @@ function LoginForm() {
         className="mt-2 block h-12 w-full rounded-[10px] border border-line-strong bg-surface px-4 text-base text-text focus:border-ink focus:outline-none"
       />
       {error && (
-        <p id="login-error" role="alert" className="mt-3 text-[0.9375rem] font-semibold text-bad">
+        <p
+          id="login-error"
+          role="alert"
+          className="mt-3 text-[0.9375rem] font-semibold text-bad"
+        >
           {error}
         </p>
       )}
@@ -131,7 +146,9 @@ export default function LoginPage() {
       <InkPanel />
       <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-12">
         <div className="mx-auto w-full max-w-[360px]">
-          <p className="mb-8 font-display text-[1.625rem] font-extrabold text-ink">Expo launcher</p>
+          <p className="mb-8 font-display text-[1.625rem] font-extrabold text-ink">
+            Holdco App launcher
+          </p>
           <Suspense>
             <LoginForm />
           </Suspense>

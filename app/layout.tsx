@@ -7,9 +7,13 @@ import "@fontsource/figtree/600.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Expo launcher",
+  title: "Holdco App Launcher",
   description: "Open Axiom and Tecleef demos, already logged in.",
   robots: { index: false, follow: false },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = { themeColor: "#0c4881" };

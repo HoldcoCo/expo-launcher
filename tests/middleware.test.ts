@@ -16,6 +16,11 @@ test('page without a session redirects to /login with next', async () => {
   expect(res.status).toBe(307);
   expect(res.headers.get('location')).toBe('https://launcher.test/login?next=%2F');
 });
+test('GET /giveaway without a session redirects to /login with next', async () => {
+  const res = await middleware(req('/giveaway'));
+  expect(res.status).toBe(307);
+  expect(res.headers.get('location')).toBe('https://launcher.test/login?next=%2Fgiveaway');
+});
 test('/login and /api/login are public', async () => {
   for (const p of ['/login', '/api/login']) expect((await middleware(req(p))).headers.get('x-middleware-next')).toBe('1');
 });

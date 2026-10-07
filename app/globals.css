@@ -44,6 +44,42 @@ body {
   to { transform: scaleX(1); }
 }
 
+/* Giveaway celebration burst — token colours only */
+@keyframes giveaway-fall {
+  0% {
+    transform: translate3d(var(--gx, 0), -12px, 0) rotate(var(--gr0, 0deg));
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--gx, 0), 110vh, 0) rotate(var(--gr1, 180deg));
+    opacity: 0;
+  }
+}
+
+@keyframes giveaway-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.giveaway-confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 10px;
+  pointer-events: none;
+  animation: giveaway-fall 1.4s ease-in forwards;
+}
+
+.giveaway-reveal-in {
+  animation: giveaway-reveal 300ms ease-out both;
+}
+
 /* Tile hover lift — pointer devices only; no transforms when reduced motion */
 @media (hover: hover) and (pointer: fine) {
   .app-tile:not(:disabled):hover {
