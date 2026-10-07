@@ -2,6 +2,7 @@
 
 import { AppForm } from "@/components/AppForm";
 import { AppTile } from "@/components/AppTile";
+import { HeaderBrand } from "@/components/HeaderBrand";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import type { PublicApp } from "@/lib/apps";
 import type { CheckResult } from "@/lib/frappe-check";
@@ -251,7 +252,7 @@ export default function LauncherPage() {
     <div className="min-h-dvh bg-canvas">
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
-          <div className="mr-auto min-w-0">
+          <HeaderBrand>
             <h1 className="font-display text-[2.25rem] font-extrabold leading-none tracking-[-0.01em] text-ink">
               Holdco App launcher
             </h1>
@@ -267,7 +268,7 @@ export default function LauncherPage() {
                 {readiness.text}
               </p>
             )}
-          </div>
+          </HeaderBrand>
 
           <Link
             href="/giveaway"

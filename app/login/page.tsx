@@ -1,5 +1,6 @@
 "use client";
 
+import { HoldcoLogo } from "@/components/HoldcoLogo";
 import { safeNext } from "@/lib/safe-next";
 import {
   Building2,
@@ -146,7 +147,8 @@ export default function LoginPage() {
       <InkPanel />
       <div className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-12">
         <div className="mx-auto w-full max-w-[360px]">
-          <p className="mb-8 font-display text-[1.625rem] font-extrabold text-ink">
+          <HoldcoLogo height={36} />
+          <p className="mb-8 mt-4 font-display text-[1.625rem] font-extrabold text-ink">
             Holdco App launcher
           </p>
           <Suspense>

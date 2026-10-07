@@ -19,6 +19,8 @@ import {
   Shuffle,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { HeaderBrand } from "@/components/HeaderBrand";
+import { HoldcoLogo } from "@/components/HoldcoLogo";
 import { Toast, type ToastMessage } from "@/components/Toast";
 import {
   buildReel,
@@ -630,14 +632,14 @@ export default function GiveawayPage() {
     <div className="min-h-dvh bg-canvas">
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
-          <div className="mr-auto min-w-0">
+          <HeaderBrand>
             <h1 className="font-display text-[2.25rem] font-extrabold leading-none tracking-[-0.01em] text-ink">
               Giveaway draw
             </h1>
             <p className="mt-1 text-[0.8125rem] font-medium text-muted">
               TEXPO 2026: three winners each get one year of AXIOM Express
             </p>
-          </div>
+          </HeaderBrand>
 
           <Link
             href="/"
@@ -681,6 +683,11 @@ export default function GiveawayPage() {
             ref={stageRef}
             className="relative flex flex-col gap-6 bg-canvas lg:min-h-[28rem]"
           >
+            {fullscreenOn && (
+              <div className="pointer-events-none absolute left-8 top-8 z-20">
+                <HoldcoLogo height={40} />
+              </div>
+            )}
             {confetti.map((piece) => {
               const pieceStyle: CSSProperties & Record<"--gx" | "--gr0" | "--gr1", string> = {
                 left: `${piece.left}%`,

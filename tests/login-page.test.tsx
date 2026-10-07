@@ -19,6 +19,10 @@ const searchParams = (q: string) => { params = new URLSearchParams(q); };
 beforeEach(() => { replace.mockReset(); params = new URLSearchParams(); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
+test('login page shows the Holdco logo', () => {
+  render(<LoginPage />);
+  expect(screen.getByRole('img', { name: 'Holdco' })).toBeVisible();
+});
 test('wrong password shows Incorrect password', async () => {
   fetchReturns(401, { error: 'invalid' });
   render(<LoginPage />);
