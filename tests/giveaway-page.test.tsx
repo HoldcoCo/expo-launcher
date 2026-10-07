@@ -285,6 +285,45 @@ describe("GiveawayPage", () => {
     }
   });
 
+  test("full screen hides Replace sheet and Reset draw", async () => {
+    seedStorage({
+      entries: [
+        { name: "Ada", code: "A1" },
+        { name: "Grace", code: "G1" },
+        { name: "Alan", code: "T1" },
+      ],
+      draws: [
+        {
+          round: 1,
+          name: "Ada",
+          code: "A1",
+          status: "winner",
+          at: "2026-10-07T10:01:00.000Z",
+        },
+      ],
+    });
+
+    render(<GiveawayPage />);
+    expect(await screen.findByRole("button", { name: "Replace sheet" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Reset draw" })).toBeVisible();
+
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => document.body,
+    });
+    document.dispatchEvent(new Event("fullscreenchange"));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Replace sheet" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Reset draw" })).toBeNull();
+    });
+
+    expect(screen.getByRole("button", { name: "Spin for winner 2" })).toBeVisible();
+    expect(
+      screen.getByText("Three winners each get one year of AXIOM Express"),
+    ).toBeVisible();
+  });
+
   test("with 3 winners in localStorage, shows filled slots and Draw complete", async () => {
     const entries: Entry[] = [
       { name: "A", code: "A1" },

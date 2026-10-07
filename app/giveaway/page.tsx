@@ -346,7 +346,10 @@ export default function GiveawayPage() {
     const run = () => {
       if (!cancelled) recomputeCodeSize();
     };
-    run();
+    // Double rAF so reel max-width has applied after entering/leaving full screen.
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(run);
+    });
     const fonts = document.fonts;
     if (fonts) {
       void fonts.ready.then(run);
@@ -355,15 +358,17 @@ export default function GiveawayPage() {
     if (!reel || typeof ResizeObserver === "undefined") {
       return () => {
         cancelled = true;
+        cancelAnimationFrame(raf);
       };
     }
     const ro = new ResizeObserver(run);
     ro.observe(reel);
     return () => {
       cancelled = true;
+      cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [hydrated, entries, recomputeCodeSize, showImport]);
+  }, [hydrated, entries, recomputeCodeSize, showImport, fullscreenOn]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -623,6 +628,69 @@ export default function GiveawayPage() {
     reelMode === "landed" && latestWinner !== null && latestWinnerAt === latestWinner.at;
 
   const Hpx = 1.7 * codeSizePx;
+  const reelMaxWidth = fullscreenOn ? "min(1100px, 88vw)" : "720px";
+  const controlsMaxWidth = fullscreenOn ? "min(1100px, 88vw)" : "720px";
+
+  /**
+   * Three winner slots — stacked in the side panel, or a row under the reel in full screen.
+   */
+  function winnerSlots(layout: "stack" | "row") {
+    const listClass =
+      layout === "row"
+        ? "grid w-full max-w-[1100px] grid-cols-3 gap-4"
+        : "flex flex-col gap-3";
+    return (
+      <ol className={listClass}>
+        {([1, 2, 3] as const).map((round) => {
+          const slot = winners.find((w) => w.round === round);
+          const justRevealed =
+            slot !== undefined &&
+            latestWinnerAt === slot.at &&
+            reelMode === "landed";
+          if (!slot) {
+            return (
+              <li
+                key={round}
+                className="rounded-[14px] border border-dashed border-line-strong px-4 py-4"
+              >
+                <p className="text-base font-semibold text-text">Winner {round}</p>
+                <p className="mt-1 text-[0.8125rem] font-medium text-muted">
+                  Not drawn yet
+                </p>
+              </li>
+            );
+          }
+          return (
+            <li
+              key={round}
+              className={[
+                "rounded-[14px] border border-line bg-surface px-4 py-4",
+                justRevealed ? "giveaway-reveal-in" : "",
+              ].join(" ")}
+            >
+              <div className="flex items-start gap-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-[0.8125rem] font-semibold text-white">
+                  {round}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-base font-semibold text-text">{slot.name}</p>
+                  <p
+                    className="mt-0.5 text-[0.9375rem] font-medium text-muted"
+                    style={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {slot.code}
+                  </p>
+                  <p className="mt-1 text-[0.8125rem] font-medium text-muted">
+                    {formatHm(slot.at)}
+                  </p>
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    );
+  }
 
   if (!hydrated) {
     return <div className="min-h-dvh bg-canvas" />;
@@ -677,17 +745,36 @@ export default function GiveawayPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-24 pt-6 sm:px-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]">
+        <div
+          className={
+            fullscreenOn
+              ? "grid grid-cols-1"
+              : "grid grid-cols-1 gap-8 lg:grid-cols-[2fr_1fr]"
+          }
+        >
           {/* Stage */}
           <div
             ref={stageRef}
-            className="relative flex flex-col gap-6 bg-canvas lg:min-h-[28rem]"
+            className={[
+              "relative flex flex-col bg-canvas",
+              fullscreenOn
+                ? "h-full min-h-full gap-0 overflow-hidden"
+                : "gap-6 lg:min-h-[28rem]",
+            ].join(" ")}
+            style={fullscreenOn ? { backgroundColor: "var(--color-canvas)" } : undefined}
           >
             {fullscreenOn && (
-              <div className="pointer-events-none absolute left-8 top-8 z-20">
+              <div className="flex shrink-0 items-center justify-between gap-6 p-8">
                 <HoldcoLogo height={40} />
+                <p
+                  className="text-right font-semibold text-ink-deep"
+                  style={{ fontSize: "clamp(1rem, 1.6vw, 1.5rem)" }}
+                >
+                  Three winners each get one year of AXIOM Express
+                </p>
               </div>
             )}
+
             {confetti.map((piece) => {
               const pieceStyle: CSSProperties & Record<"--gx" | "--gr0" | "--gr1", string> = {
                 left: `${piece.left}%`,
@@ -706,7 +793,7 @@ export default function GiveawayPage() {
               );
             })}
 
-            {(showImport || entries.length === 0) && (
+            {(showImport || entries.length === 0) && !fullscreenOn && (
               <div className="flex flex-col gap-3">
                 <div
                   role="button"
@@ -752,33 +839,46 @@ export default function GiveawayPage() {
               </div>
             )}
 
+            {/* Keep file input mounted when import UI is hidden in full screen. */}
+            {fullscreenOn && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPT}
+                className="sr-only"
+                onChange={onInputChange}
+              />
+            )}
+
             {entries.length > 0 && !showImport && (
               <>
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <p className="text-base font-semibold text-text">
-                    {entries.length} entries in the draw
-                  </p>
-                  {summary && summary.skippedMissing > 0 && (
-                    <p className="text-[0.8125rem] font-medium text-muted">
-                      {summary.skippedMissing} rows skipped (missing name or code)
+                {!fullscreenOn && (
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <p className="text-base font-semibold text-text">
+                      {entries.length} entries in the draw
                     </p>
-                  )}
-                  {summary && summary.duplicates > 0 && (
-                    <p className="text-[0.8125rem] font-medium text-muted">
-                      {summary.duplicates} duplicate codes removed
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => setShowImport(true)}
-                    className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
-                  >
-                    Replace sheet
-                  </button>
-                </div>
+                    {summary && summary.skippedMissing > 0 && (
+                      <p className="text-[0.8125rem] font-medium text-muted">
+                        {summary.skippedMissing} rows skipped (missing name or code)
+                      </p>
+                    )}
+                    {summary && summary.duplicates > 0 && (
+                      <p className="text-[0.8125rem] font-medium text-muted">
+                        {summary.duplicates} duplicate codes removed
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setShowImport(true)}
+                      className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
+                    >
+                      Replace sheet
+                    </button>
+                  </div>
+                )}
 
-                {summary && summary.suspicious > 0 && (
+                {!fullscreenOn && summary && summary.suspicious > 0 && (
                   <div
                     role="alert"
                     className="rounded-[12px] border border-line bg-bad-bg px-4 py-3 text-base text-bad"
@@ -800,14 +900,21 @@ export default function GiveawayPage() {
                   </div>
                 )}
 
-                {/* Reel */}
-                <div className="flex flex-col items-center gap-6">
+                {/* Reel centrepiece */}
+                <div
+                  className={[
+                    "flex flex-col items-center gap-6",
+                    fullscreenOn
+                      ? "min-h-0 flex-1 justify-center px-8"
+                      : "",
+                  ].join(" ")}
+                >
                   <div
                     ref={reelWindowRef}
                     aria-hidden={reelMode === "spinning" ? true : undefined}
                     className="relative w-full overflow-hidden rounded-[14px] border border-line bg-surface"
                     style={{
-                      maxWidth: "720px",
+                      maxWidth: reelMaxWidth,
                       height: `${Hpx * 3}px`,
                       perspective: "900px",
                     }}
@@ -855,7 +962,10 @@ export default function GiveawayPage() {
                     </div>
                   </div>
 
-                  <div className="flex w-full max-w-[720px] flex-col items-center gap-3">
+                  <div
+                    className="flex w-full flex-col items-center gap-3"
+                    style={{ maxWidth: controlsMaxWidth }}
+                  >
                     {drawComplete ? (
                       <p className="min-h-14 text-center text-base font-semibold text-ink">
                         Draw complete
@@ -865,35 +975,45 @@ export default function GiveawayPage() {
                         type="button"
                         onClick={spin}
                         disabled={busy || suspiciousBlocked || pool.length === 0}
-                        className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[10px] bg-ink px-8 text-[0.9375rem] font-semibold text-white disabled:opacity-50"
+                        className={[
+                          "inline-flex items-center justify-center gap-2 rounded-[10px] bg-ink px-8 font-semibold text-white disabled:opacity-50",
+                          fullscreenOn
+                            ? "min-h-16 text-[1.125rem]"
+                            : "min-h-14 text-[0.9375rem]",
+                        ].join(" ")}
                       >
                         <Shuffle size={18} strokeWidth={1.75} aria-hidden="true" />
                         Spin for winner {currentRound}
                       </button>
                     )}
 
-                    <div className="flex flex-wrap justify-center gap-2">
-                      <button
-                        type="button"
-                        disabled={busy || draws.length === 0}
-                        onClick={() => downloadResultsCsv(draws)}
-                        className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
-                      >
-                        Download results (CSV)
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy || draws.length === 0}
-                        onClick={resetDraw}
-                        className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
-                      >
-                        Reset draw
-                      </button>
-                    </div>
+                    {!fullscreenOn && (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          type="button"
+                          disabled={busy || draws.length === 0}
+                          onClick={() => downloadResultsCsv(draws)}
+                          className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
+                        >
+                          Download results (CSV)
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy || draws.length === 0}
+                          onClick={resetDraw}
+                          className="min-h-12 rounded-[10px] px-3 text-[0.9375rem] font-semibold text-muted disabled:opacity-50"
+                        >
+                          Reset draw
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {showWinnerCard && latestWinner && (
-                    <div className="giveaway-reveal-in w-full max-w-[720px] text-center">
+                    <div
+                      className="giveaway-reveal-in w-full text-center"
+                      style={{ maxWidth: controlsMaxWidth }}
+                    >
                       <p className="text-[0.8125rem] font-medium text-muted">
                         Winner {latestWinner.round} of 3
                       </p>
@@ -922,93 +1042,53 @@ export default function GiveawayPage() {
                       </button>
                     </div>
                   )}
+
+                  {fullscreenOn && (
+                    <div className="w-full max-w-[1100px] shrink-0 pb-8">
+                      {winnerSlots("row")}
+                    </div>
+                  )}
                 </div>
               </>
             )}
           </div>
 
-          {/* Winners panel */}
-          <aside className="flex flex-col gap-4">
-            <div className="flex items-baseline gap-3">
-              <h2 className="text-base font-semibold text-text">Winners</h2>
-              <span className="text-[0.8125rem] font-medium text-muted">
-                {winners.length} of 3
-              </span>
-            </div>
-
-            <ol className="flex flex-col gap-3">
-              {([1, 2, 3] as const).map((round) => {
-                const slot = winners.find((w) => w.round === round);
-                const justRevealed =
-                  slot !== undefined &&
-                  latestWinnerAt === slot.at &&
-                  reelMode === "landed";
-                if (!slot) {
-                  return (
-                    <li
-                      key={round}
-                      className="rounded-[14px] border border-dashed border-line-strong px-4 py-4"
-                    >
-                      <p className="text-base font-semibold text-text">Winner {round}</p>
-                      <p className="mt-1 text-[0.8125rem] font-medium text-muted">
-                        Not drawn yet
-                      </p>
-                    </li>
-                  );
-                }
-                return (
-                  <li
-                    key={round}
-                    className={[
-                      "rounded-[14px] border border-line bg-surface px-4 py-4",
-                      justRevealed ? "giveaway-reveal-in" : "",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-[0.8125rem] font-semibold text-white">
-                        {round}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-text">{slot.name}</p>
-                        <p
-                          className="mt-0.5 text-[0.9375rem] font-medium text-muted"
-                          style={{ fontVariantNumeric: "tabular-nums" }}
-                        >
-                          {slot.code}
-                        </p>
-                        <p className="mt-1 text-[0.8125rem] font-medium text-muted">
-                          {formatHm(slot.at)}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-
-            {absents.length > 0 && (
-              <div>
-                <p className="text-[0.8125rem] font-medium text-muted">Redrawn (not present)</p>
-                <ul className="mt-2 flex flex-col gap-1">
-                  {absents.map((a) => (
-                    <li
-                      key={`${a.code}-${a.at}`}
-                      className="text-[0.8125rem] font-medium text-muted"
-                      style={{ fontVariantNumeric: "tabular-nums" }}
-                    >
-                      {a.name}, {a.code}
-                    </li>
-                  ))}
-                </ul>
+          {/* Winners panel — hidden in full screen (slots move under the reel). */}
+          {!fullscreenOn && (
+            <aside className="flex flex-col gap-4">
+              <div className="flex items-baseline gap-3">
+                <h2 className="text-base font-semibold text-text">Winners</h2>
+                <span className="text-[0.8125rem] font-medium text-muted">
+                  {winners.length} of 3
+                </span>
               </div>
-            )}
 
-            {entries.length > 0 && (
-              <p className="text-[0.8125rem] font-medium text-muted">
-                {pool.length} eligible entries left
-              </p>
-            )}
-          </aside>
+              {winnerSlots("stack")}
+
+              {absents.length > 0 && (
+                <div>
+                  <p className="text-[0.8125rem] font-medium text-muted">Redrawn (not present)</p>
+                  <ul className="mt-2 flex flex-col gap-1">
+                    {absents.map((a) => (
+                      <li
+                        key={`${a.code}-${a.at}`}
+                        className="text-[0.8125rem] font-medium text-muted"
+                        style={{ fontVariantNumeric: "tabular-nums" }}
+                      >
+                        {a.name}, {a.code}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {entries.length > 0 && (
+                <p className="text-[0.8125rem] font-medium text-muted">
+                  {pool.length} eligible entries left
+                </p>
+              )}
+            </aside>
+          )}
         </div>
       </main>
 
